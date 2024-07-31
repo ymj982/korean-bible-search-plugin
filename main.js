@@ -46258,7 +46258,7 @@ var VerseSuggestModal = class extends import_obsidian.SuggestModal {
     super(app);
     this.selectedVerses = null;
     this.setInstructions([
-      { command: "", purpose: "Select verses to insert, ex: \uC694\uD55C\uBCF5\uC74C3:16-18" }
+      { command: "", purpose: "\uC0BD\uC785\uD560 \uAD6C\uC808 \uC120\uD0DD, \uC608\uC2DC: \uC694\uD55C\uBCF5\uC74C3:16-18" }
     ]);
   }
   async getSuggestions(query) {

@@ -989,7 +989,7 @@ class VerseSuggestModal extends SuggestModal<string> {
 	constructor(app: App) {
 		super(app);
 		this.setInstructions([
-			{ command: "", purpose: "Select verses to insert, ex: 요한복음3:16-18" }
+			{ command: "", purpose: "삽입할 구절 선택, 예시: 요한복음3:16-18" }
 		]);
 	}
 
