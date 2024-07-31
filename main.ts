@@ -1,5 +1,4 @@
 import { App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting, SuggestModal, EditorSuggest, EditorPosition, EditorSuggestContext, EditorSuggestTriggerInfo, TFile } from 'obsidian';
-const request = require('request');
 
 // Interface for plugin settings
 interface KoreanBibleSearchPluginSettings {
