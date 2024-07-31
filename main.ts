@@ -917,16 +917,13 @@ const bookNames = {
 }
 
 // Utility functions
-function requestPromise(url: string): Promise<string> {
-	return new Promise((resolve, reject) => {
-		request(url, (error: any, response: any, body: any) => {
-			if (error) {
-				reject(error);
-			} else {
-				resolve(body);
-			}
-		});
-	});
+async function fetchRequest(url: string): Promise<string> {
+    const proxyUrl = 'https://api.allorigins.win/raw?url=';
+    const response = await fetch(`${proxyUrl}${encodeURIComponent(url)}`);
+    if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    return response.text();
 }
 
 function verseMatch(verseTrigger: string) {
@@ -973,7 +970,7 @@ function formatVerses(verses: Verse[]): string {
 async function callAPI(query: string): Promise<string[]> {
 	try {
 		const apiUrl = `http://ibibles.net/quote.php?kor-${query}`;
-		const response = await requestPromise(apiUrl);
+		const response = await fetchRequest(apiUrl);
 		const extractedVerses = extractVerses(response);
 		return [formatVerses(extractedVerses)];
 	} catch (error) {

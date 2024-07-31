@@ -46202,16 +46202,13 @@ var bookNames = {
     ]
   }
 };
-function requestPromise(url) {
-  return new Promise((resolve, reject) => {
-    request(url, (error, response, body) => {
-      if (error) {
-        reject(error);
-      } else {
-        resolve(body);
-      }
-    });
-  });
+async function fetchRequest(url) {
+  const proxyUrl = "https://api.allorigins.win/raw?url=";
+  const response = await fetch(`${proxyUrl}${encodeURIComponent(url)}`);
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`);
+  }
+  return response.text();
 }
 function verseMatch(verseTrigger) {
   const cleanedQuery = verseTrigger.replace(/\s+/g, "");
@@ -46245,7 +46242,7 @@ function formatVerses(verses) {
 async function callAPI(query) {
   try {
     const apiUrl = `http://ibibles.net/quote.php?kor-${query}`;
-    const response = await requestPromise(apiUrl);
+    const response = await fetchRequest(apiUrl);
     const extractedVerses = extractVerses(response);
     return [formatVerses(extractedVerses)];
   } catch (error) {
