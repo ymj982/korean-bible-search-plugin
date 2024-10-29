@@ -1,13 +1,17 @@
-import { App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting, SuggestModal, EditorSuggest, EditorPosition, EditorSuggestContext, EditorSuggestTriggerInfo, TFile } from 'obsidian';
+import { App, Editor, MarkdownView, Plugin, PluginSettingTab, Setting, SuggestModal, EditorSuggest, EditorPosition, EditorSuggestContext, EditorSuggestTriggerInfo, TFile } from 'obsidian';
 
 // Interface for plugin settings
 interface KoreanBibleSearchPluginSettings {
 	mySetting: string;
+	enableTagging: boolean;
+	prefixTrigger: string;
 }
 
 // Default settings
 const DEFAULT_SETTINGS: KoreanBibleSearchPluginSettings = {
-	mySetting: 'default'
+	mySetting: 'default',
+	enableTagging: false,
+	prefixTrigger: '',
 }
 
 // Main plugin class
@@ -18,14 +22,10 @@ export default class KoreanBibleSearchPlugin extends Plugin {
 		await this.loadSettings();
 
 		// Add a ribbon icon
-		const ribbonIconEl = this.addRibbonIcon('quote', 'Search Bible', (evt: MouseEvent) => {
+		const ribbonIconEl = this.addRibbonIcon('dice', 'Search Bible', (evt: MouseEvent) => {
 			new VerseSuggestModal(this.app).open();
 		});
 		ribbonIconEl.addClass('my-plugin-ribbon-class');
-
-		// Add a status bar item
-		const statusBarItemEl = this.addStatusBarItem();
-		statusBarItemEl.setText('Status Bar Text');
 
 		// Add a simple command
 		this.addCommand({
@@ -980,6 +980,8 @@ async function callAPI(query: string): Promise<string[]> {
 
 // Verse Suggest Modal class
 class VerseSuggestModal extends SuggestModal<string> {
+	private plugin: KoreanBibleSearchPlugin;
+    private settings: KoreanBibleSearchPluginSettings;
 	private selectedVerses: string | null = null;
 
 	constructor(app: App) {
@@ -1013,7 +1015,16 @@ class VerseSuggestModal extends SuggestModal<string> {
 		if (!editor) {
 			return;
 		}
-		const formattedSuggestion = this.formatVersesForCallout(suggestion, this.selectedVerses);
+
+		let formattedSuggestion = '';
+
+		// If Enable Tag feature is enabled, add # infront of the selected book name
+		if (this.settings.enableTagging && this.selectedVerses) {
+			formattedSuggestion = this.formatVersesForCallout(suggestion, this.selectedVerses, true);
+		} else {
+			formattedSuggestion = this.formatVersesForCallout(suggestion, this.selectedVerses, false);
+		}
+
 		const cursor = editor.getCursor();
 		editor.replaceRange(formattedSuggestion, cursor);
 
@@ -1024,9 +1035,10 @@ class VerseSuggestModal extends SuggestModal<string> {
 		editor.setCursor(newCursorPosition);
 	}
 
-	formatVersesForCallout(suggestion: string, selectedVerses: string | null): string {
-		return `> [!quote]+ ${selectedVerses ? selectedVerses : '구절'}\n> ${suggestion}`;
+	formatVersesForCallout(suggestion: string, selectedVerses: string | null, enableTag: boolean): string {
+		return `> [!quote]+ ${enableTag ? '#' : ''}${selectedVerses ? selectedVerses : '구절'}\n> ${suggestion}`;
 	}
+	
 }
 
 // Editor Suggest class
@@ -1042,15 +1054,16 @@ class VerseEditorSuggester extends EditorSuggest<string> {
     }
 
     onTrigger(cursor: EditorPosition, editor: Editor, file: TFile | null): EditorSuggestTriggerInfo | null {
+		const triggerSetting = this.settings.prefixTrigger.length > 0 ? this.settings.prefixTrigger : '-+';
         const currentContent = editor.getLine(cursor.line).substring(0, cursor.ch);
-        if (currentContent.length < 2) {
+        if (currentContent.length < triggerSetting.length) {
             return null;
         }
-        const prefixTrigger = currentContent.substring(0, 2);
-        if (prefixTrigger !== '++') {
+        const prefixTrigger = currentContent.substring(0, triggerSetting.length);
+        if (prefixTrigger !== triggerSetting) {
             return null;
         }
-        const queryContent = currentContent.substring(2);
+        const queryContent = currentContent.substring(triggerSetting.length);
         const match = verseMatch(queryContent);
         if (match) {
             return {
@@ -1088,7 +1101,16 @@ class VerseEditorSuggester extends EditorSuggest<string> {
         }
         // Create a new instance of VerseSuggestModal to access the formatVersesForCallout method
         const verseSuggestModal = new VerseSuggestModal(this.plugin.app);
-        const formattedSuggestion = verseSuggestModal.formatVersesForCallout(suggestion, this.selectedVerses);
+        //const formattedSuggestion = verseSuggestModal.formatVersesForCallout(suggestion, this.selectedVerses, true);
+
+		let formattedSuggestion = '';
+
+		// If Enable Tag feature is enabled, add # infront of the selected book name
+		if (this.settings.enableTagging && this.selectedVerses) {
+			formattedSuggestion = verseSuggestModal.formatVersesForCallout(suggestion, this.selectedVerses, true);
+		} else {
+			formattedSuggestion = verseSuggestModal.formatVersesForCallout(suggestion, this.selectedVerses, false);
+		}
 
         const { start, end } = this.context!;
         editor.replaceRange(formattedSuggestion, start, end);
@@ -1115,14 +1137,28 @@ class SampleSettingTab extends PluginSettingTab {
         containerEl.empty();
 
         new Setting(containerEl)
-            .setName('Setting #1')
-            .setDesc('It\'s a secret')
-            .addText(text => text
-                .setPlaceholder('Enter your secret')
-                .setValue(this.plugin.settings.mySetting)
-                .onChange(async (value) => {
-                    this.plugin.settings.mySetting = value;
-                    await this.plugin.saveSettings();
-                }));
+            .setName('Set Prefix Trigger')
+            .setDesc('구절 자동 완성을 시작할 트리거를 설정합니다. 기본값은 ’++’입니다')
+			.addTextArea(textArea => {
+				textArea
+					.setPlaceholder('트리거를 입력하세요...')
+					.setValue(this.plugin.settings.prefixTrigger || '')
+					.onChange(async (value) => {
+						this.plugin.settings.prefixTrigger = value;
+						await this.plugin.saveSettings();
+					});
+				textArea.inputEl.style.height = '28px';
+				}
+			);
+
+		new Setting(containerEl)
+			.setName('Enable Tag')
+			.setDesc('구절 삽입 시 책 이름을 자동으로 태그로 변환합니다.')
+			.addToggle(toggle => toggle
+				.onChange(async (value) => {
+					this.plugin.settings.enableTagging = value;
+					await this.plugin.saveSettings();
+				})
+			);
     }
 }
